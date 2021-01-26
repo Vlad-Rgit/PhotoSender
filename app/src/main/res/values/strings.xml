@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Photo Sender</string>
+    <string name="forward">Далее</string>
+    <string name="enter_auth_code">Введите код доступа</string>
 </resources>
