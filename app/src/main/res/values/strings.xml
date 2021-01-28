@@ -15,5 +15,6 @@
 
     <string name="yes">Да</string>
     <string name="no">Нет</string>
+    <string name="enter_phone_number">Введите номер телефона</string>
 
 </resources>

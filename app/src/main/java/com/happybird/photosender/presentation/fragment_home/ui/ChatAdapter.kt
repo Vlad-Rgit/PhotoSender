@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.happybird.photosender.PhotoSenderApp
 import com.happybird.photosender.R
 import com.happybird.photosender.databinding.ItemChatBinding
@@ -51,18 +52,17 @@ class ChatAdapter(context: Context): RecyclerView.Adapter<ChatAdapter.ChatViewHo
             currentChat = chat
             binding.run {
                 val context = root.context
+                imgChat.setImageBitmap(null)
                 fileLoadingJob?.cancel()
                 if (chat.smallPhoto == null) {
                     imgChat.setImageResource(R.drawable.no_photo)
                 } else {
                     fileLoadingJob = CoroutineScope(Dispatchers.IO).launch {
 
-                        val bytes = telegramFileProvider
-                            .getFileContent(chat.smallPhoto)
+                        val path = telegramFileProvider
+                            .getFilePath(chat.smallPhoto)
 
-                        val bitmap = BitmapFactory.decodeByteArray(
-                            bytes, 0, bytes.size
-                        )
+                        val bitmap = BitmapFactory.decodeFile(path)
 
                         withContext(Dispatchers.Main) {
                             imgChat.setImageBitmap(bitmap)

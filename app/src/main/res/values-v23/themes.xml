@@ -1,5 +1,6 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
     <style name="Theme.PhotoSender" parent="Theme.MaterialComponents.Light.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">#0288D1</item>
@@ -11,5 +12,8 @@
         <item name="colorSecondaryVariant">#0277BD</item>
         <item name="colorOnSecondary">@color/black</item>
         <!-- Customize your theme here. -->
+
+        <item name="android:statusBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>

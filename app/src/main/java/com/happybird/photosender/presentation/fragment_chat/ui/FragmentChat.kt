@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
@@ -17,18 +18,31 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.happybird.photosender.PhotoSenderApp
 import com.happybird.photosender.R
 import com.happybird.photosender.databinding.FragmentChatBinding
 import com.happybird.photosender.domain.PhotoSend
+import com.happybird.photosender.framework.data.TelegramFileProvider
+import com.happybird.photosender.framework.utils.allocateImageFile
 import com.happybird.photosender.presentation.PaddingDivider
 import com.happybird.photosender.presentation.fragment_chat.FragmentChatState
 import com.happybird.photosender.presentation.fragment_chat.MessagesState
 import com.happybird.photosender.presentation.fragment_chat.viewmodel.FragmentChatViewModel
 import com.happybird.photosender.presentation.fragment_chat.viewmodel.FragmentChatViewModelFactory
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 
 
 class FragmentChat: Fragment() {
@@ -46,6 +60,8 @@ class FragmentChat: Fragment() {
     private lateinit var viewModel: FragmentChatViewModel
     private lateinit var binding: FragmentChatBinding
     private lateinit var messageAdapter: MessagesAdapter
+    private lateinit var telegramFileProvider: TelegramFileProvider
+
 
     private var photoSend: PhotoSend? = null
 
@@ -53,6 +69,10 @@ class FragmentChat: Fragment() {
         super.onCreate(savedInstanceState)
 
         val chatId = requireArguments().getLong(EXTRA_CHAT_ID)
+
+        val photoApp = requireActivity().application as PhotoSenderApp
+
+        telegramFileProvider = photoApp.appComponent.getTelegramFileProvider()
 
         viewModel = ViewModelProvider(
             this,
@@ -80,11 +100,38 @@ class FragmentChat: Fragment() {
         return binding.root
     }
 
+
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        initToolbar()
         initRecyclerView()
         observeViewModel()
         initButtons()
+    }
+
+    private fun initToolbar() {
+        val chat = viewModel.getChatInfo()
+
+        binding.run {
+            tvTitle.text = chat.title
+            toolbar.setNavigationOnClickListener {
+                findNavController().navigateUp()
+            }
+
+            if(chat.smallPhoto == null) {
+                imgChat.setImageResource(R.drawable.no_photo)
+            }
+            else {
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val path = telegramFileProvider.getFilePath(chat.smallPhoto)
+                    val bitmap = BitmapFactory.decodeFile(path)
+                    withContext(Dispatchers.Main) {
+                        imgChat.setImageBitmap(bitmap)
+                    }
+                }
+            }
+        }
     }
 
     private fun startCamera() {
@@ -107,7 +154,19 @@ class FragmentChat: Fragment() {
     }
 
     private fun takePhoto() {
-        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        val path = allocateImageFile(requireContext())
+        photoSend = PhotoSend(path)
+        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
+            putExtra(MediaStore.EXTRA_OUTPUT, FileProvider.getUriForFile(
+                requireContext(),
+                requireContext()
+                    .applicationContext
+                    .packageName + ".provider",
+                File(path)
+            ))
+            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
         try {
             startActivityForResult(intent, CODE_TAKE_PHOTO)
         }
@@ -124,61 +183,50 @@ class FragmentChat: Fragment() {
         super.onActivityResult(requestCode, resultCode, data)
 
         if(resultCode == Activity.RESULT_OK &&
-                requestCode == CODE_TAKE_PHOTO &&
-                data != null) {
-            val bitmap = data.extras!!.get("data") as Bitmap
+            requestCode == CODE_TAKE_PHOTO) {
+            val toSend = photoSend!!
 
-            val tempUri = getImageUri(requireContext(), bitmap)
+            val bitmap = BitmapFactory.decodeFile(toSend.path)
+            toSend.width = bitmap.width
+            toSend.height = bitmap.height
 
             AlertDialog.Builder(requireContext())
                 .setMessage(R.string.edit_photo)
                 .setPositiveButton(R.string.yes) { d, i ->
                     val editIntent = Intent(Intent.ACTION_EDIT)
-                    editIntent.setDataAndType(tempUri, "image/*")
-                    editIntent.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    val uri = FileProvider.getUriForFile(
+                        requireContext(),
+                        requireContext()
+                            .applicationContext
+                            .packageName + ".provider",
+                        File(toSend.path)
+                    )
+                    editIntent.putExtra(MediaStore.EXTRA_OUTPUT, uri)
+                    editIntent.setDataAndType(uri, "image/*")
+                    editIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    editIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
                     startActivityForResult(
-                        Intent.createChooser(editIntent, null),
+                        editIntent,
                         CODE_REQUEST_PHOTO_EDIT
                     )
                 }
                 .setNegativeButton(R.string.no) { d, i ->
-                    val path = getRealPathFromURI(tempUri)
-                    photoSend = PhotoSend(
-                        path,
-                        bitmap.width,
-                        bitmap.height
-                    )
-                    binding.img.setImageBitmap(bitmap)
-                    binding.img.visibility = View.VISIBLE
+                    prepareImageToSend(bitmap)
                 }.show()
         }
+        else if(requestCode == CODE_REQUEST_PHOTO_EDIT) {
+            prepareImageToSend(BitmapFactory
+                .decodeFile(photoSend!!.path))
+        }
+    }
+
+    private fun prepareImageToSend(bitmap: Bitmap) {
+        binding.img.setImageBitmap(bitmap)
+        binding.img.visibility = View.VISIBLE
     }
 
     private fun sendImageForEdit() {
 
-    }
-
-    fun getImageUri(inContext: Context, inImage: Bitmap): Uri {
-        val bytes = ByteArrayOutputStream()
-        inImage.compress(Bitmap.CompressFormat.JPEG, 100, bytes)
-        val path = Images.Media.insertImage(inContext.getContentResolver(), inImage, "Title", null)
-        return Uri.parse(path)
-    }
-
-    fun getRealPathFromURI(uri: Uri): String {
-        var path = ""
-        if (requireContext().getContentResolver() != null) {
-            val cursor: Cursor? = requireContext().getContentResolver()
-                .query(uri, null, null, null, null)
-
-            if (cursor != null) {
-                cursor.moveToFirst()
-                val idx: Int = cursor.getColumnIndex(Images.ImageColumns.DATA)
-                path = cursor.getString(idx)
-                cursor.close()
-            }
-        }
-        return path
     }
 
     override fun onRequestPermissionsResult(
@@ -206,6 +254,7 @@ class FragmentChat: Fragment() {
                     val text = edMessageText.text.toString()
                     if (text.isNotBlank()) {
                         viewModel.sendTextMessage(text)
+                        edMessageText.setText("")
                     }
                 }
             }
@@ -215,11 +264,14 @@ class FragmentChat: Fragment() {
         }
     }
 
+    private var isLoading = false
+
     private fun initRecyclerView() {
         binding.rvMessages.run {
-            layoutManager = LinearLayoutManager(requireContext()).apply {
+            val linearLayout = LinearLayoutManager(requireContext()).apply {
                 stackFromEnd = true
             }
+            layoutManager = linearLayout
             adapter = messageAdapter
 
             val dividerSpaceHeight = requireContext()
@@ -252,6 +304,7 @@ class FragmentChat: Fragment() {
 
     private fun renderList(state: FragmentChatState) {
         if(state is MessagesState) {
+            isLoading = false
             messageAdapter.updateItems(state.list)
             val layoutManager = binding.rvMessages.layoutManager
                 as LinearLayoutManager

@@ -11,9 +11,5 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-        Thread.setDefaultUncaughtExceptionHandler { t, e ->
-            Log.e("ERROR!", e.message, e)
-        }
     }
 }

@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.happybird.photosender.R
 import com.happybird.photosender.databinding.FragmentHomeBinding
 import com.happybird.photosender.domain.Chat
@@ -85,7 +86,8 @@ class FragmentHome: Fragment() {
     private fun initRecyclerView() {
         binding.rvChats.run {
             setHasFixedSize(true)
-            layoutManager = LinearLayoutManager(requireContext())
+            val linearManager = LinearLayoutManager(requireContext())
+            layoutManager = linearManager
             adapter = chatAdapter
 
             addItemDecoration(DividerItemDecoration(

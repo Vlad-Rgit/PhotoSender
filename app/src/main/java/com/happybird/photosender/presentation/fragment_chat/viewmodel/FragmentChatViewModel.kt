@@ -6,6 +6,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.happybird.photosender.PhotoSenderApp
+import com.happybird.photosender.domain.Chat
 import com.happybird.photosender.domain.PhotoSend
 import com.happybird.photosender.domain.User
 import com.happybird.photosender.framework.data.TelegramClient
@@ -18,7 +19,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-class FragmentChatViewModel(application: Application, chatId: Long)
+class FragmentChatViewModel(application: Application, private val chatId: Long)
     : AndroidViewModel(application) {
 
     @Inject
@@ -38,9 +39,9 @@ class FragmentChatViewModel(application: Application, chatId: Long)
         photoApp.appComponent.inject(this)
 
         currentUser = userMapper.toDomain(telegramClient.currentUser)
+        telegramClient.registerInboxChatId(chatId)
+        
         viewModelScope.launch(Dispatchers.IO) {
-            telegramClient.registerInboxChatId(chatId)
-            telegramClient.updateMessages(100)
             telegramClient.inbox
                 .map {
                     it.reversed()
@@ -52,11 +53,26 @@ class FragmentChatViewModel(application: Application, chatId: Long)
                     _state.postValue(MessagesState(it))
                 }
         }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            telegramClient.updateMessages(1000)
+        }
+    }
+
+    fun loadMore(loaded: () -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            telegramClient.updateMessages(100)
+            loaded()
+        }
     }
 
     override fun onCleared() {
         super.onCleared()
         telegramClient.clearInbox()
+    }
+
+    fun getChatInfo(): Chat {
+        return telegramClient.getChatInfo(chatId)
     }
 
     fun sendImage(photoSend: PhotoSend) {

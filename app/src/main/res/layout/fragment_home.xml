@@ -1,20 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:padding="16dp">
+    android:orientation="vertical"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <ProgressBar
-        android:id="@+id/progress_circular"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:layout_gravity="center"/>
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_chats"
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="?actionBarSize"
+        android:background="@color/white">
+        <androidx.appcompat.widget.Toolbar
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:title="Чаты"/>
+    </com.google.android.material.appbar.AppBarLayout>
 
-</FrameLayout>
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="16dp">
+
+        <ProgressBar
+            android:id="@+id/progress_circular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:layout_gravity="center"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_chats"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+    </FrameLayout>
+
+</LinearLayout>

@@ -1,6 +1,7 @@
 package com.happybird.photosender.framework.data.extensions
 
 import com.happybird.photosender.framework.TelegramClientException
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.drinkless.td.libcore.telegram.Client
 import org.drinkless.td.libcore.telegram.TdApi
 import kotlin.coroutines.resume

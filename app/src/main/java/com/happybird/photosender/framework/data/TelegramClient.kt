@@ -13,6 +13,7 @@ import com.happybird.photosender.framework.data.extensions.send
 import com.happybird.photosender.framework.data.mappers.ChatMapper
 import com.happybird.photosender.framework.data.mappers.MessageMapper
 import com.happybird.photosender.framework.data.mappers.UserMapper
+import com.happybird.photosender.framework.utils.deletePhotoFromCache
 import com.happybird.photosender.framework.utils.generateList
 import com.happybird.photosender.framework.utils.generateMap
 import kotlinx.coroutines.*
@@ -78,6 +79,12 @@ class TelegramClient
         handleUpdateAuthState(authState)
     }
 
+    fun getChatInfo(chatId: Long): Chat {
+        return synchronized(_chats) {
+            _chats.value[chatId] ?: error("No Chat Found with id $chatId")
+        }
+    }
+
     suspend fun initChats() {
         val offsetOrder = Long.MAX_VALUE
         val offsetChatId: Long = 0
@@ -125,7 +132,6 @@ class TelegramClient
             if(inboxChatId == chatId) {
                 addMessageToInbox(messageMapper
                     .toDomain(message)
-                    .updateIsSending(true)
                 )
             }
         }
@@ -322,17 +328,17 @@ class TelegramClient
     }
 
 
-    suspend fun downloadFile(fileId: Int) {
-        withContext(Dispatchers.IO) {
+    suspend fun downloadFile(fileId: Int): TdApi.File {
+        return withContext(Dispatchers.IO) {
             client.send(
                 TdApi.DownloadFile(
                     fileId,
                     1,
                     0,
                     0,
-                    false
+                    true
                 )
-            )
+            ) as TdApi.File
         }
     }
 
@@ -370,13 +376,13 @@ class TelegramClient
     private fun handleUpdateSuccessSent(value: Object) {
         val update = value as TdApi.UpdateMessageSendSucceeded
         val message = messageMapper.toDomain(update.message)
+
         synchronized(_photosCache) {
             if (message.messageType == MessageType.Photo &&
                 _photosCache.containsKey(message.id)
             ) {
                 try {
-                    val file = File(_photosCache[message.id]!!)
-                    file.delete()
+                    deletePhotoFromCache(_photosCache[message.id]!!)
                     _photosCache.remove(message.id)
                 } catch (ex: java.lang.Exception) {
                     Log.e(TAG, ex.message, ex)
@@ -524,11 +530,13 @@ class TelegramClient
 
 
     private fun handleNewChat(chat: TdApi.Chat) {
-        val chatDomain = chatMapper.toDomain(chat)
-        synchronized(_chats) {
-            _chats.value = generateMap {
-                putAll(_chats.value)
-                put(chatDomain.id, chatDomain)
+        if(chat.type.constructor == TdApi.ChatTypePrivate.CONSTRUCTOR) {
+            val chatDomain = chatMapper.toDomain(chat)
+            synchronized(_chats) {
+                _chats.value = generateMap {
+                    putAll(_chats.value)
+                    put(chatDomain.id, chatDomain)
+                }
             }
         }
     }

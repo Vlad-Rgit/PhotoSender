@@ -17,7 +17,9 @@ data class Message(
         val date: Int,
         val messageType: MessageType,
         val isSending: Boolean = false,
-        val isFailed: Boolean = false
+        val isFailed: Boolean = false,
+        val photoHeight: Int? = null,
+        val photoWidth: Int? = null
 ): ListItem<Message> {
 
     override fun areContentsTheSame(other: Message): Boolean {
@@ -38,7 +40,9 @@ data class Message(
             date,
             messageType,
             isSending,
-            isFailed
+            isFailed,
+            photoHeight,
+            photoWidth
         )
     }
 
@@ -53,7 +57,9 @@ data class Message(
             date,
             messageType,
             isSending,
-            isFailed
+            isFailed,
+            photoHeight,
+            photoWidth
         )
     }
 

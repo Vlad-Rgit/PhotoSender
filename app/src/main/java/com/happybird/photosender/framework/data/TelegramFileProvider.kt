@@ -14,20 +14,15 @@ class TelegramFileProvider @Inject constructor(
         private val telegramClient: TelegramClient
 ) {
 
-    suspend fun getFileContent(file: TdApi.File): ByteArray {
+    suspend fun getFilePath(file: TdApi.File): String {
         return withContext(Dispatchers.IO) {
-            val local = file.local
-            if(!local.isDownloadingActive) {
-                telegramClient.downloadFile(file.id)
-                while (!local.isDownloadingCompleted) {
-                    delay(100L)
-                }
+            val downloadedFile = if(file.local.isDownloadingCompleted) {
+                file.local
             }
-            val stream = FileInputStream(local.path)
-            val bytes = ByteArray(local.downloadedSize)
-            stream.read(bytes, 0, bytes.size)
-            stream.close()
-            bytes
+            else {
+                telegramClient.downloadFile(file.id).local
+            }
+            downloadedFile.path
         }
     }
 
