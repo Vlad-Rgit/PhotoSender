@@ -7,5 +7,21 @@
     <fragment
         android:id="@+id/fragmentLogin"
         android:name="com.happybird.photosender.presentation.fragment_login.ui.FragmentLogin"
-        android:label="FragmentLogin" />
+        android:label="FragmentLogin" >
+        <action
+            android:id="@+id/action_fragmentLogin_to_fragmentChat"
+            app:destination="@id/fragmentChat" />
+    </fragment>
+    <fragment
+        android:id="@+id/fragmentChat"
+        android:name="com.happybird.photosender.presentation.fragment_chat.ui.FragmentChat"
+        android:label="FragmentChat" >
+        <action
+            android:id="@+id/action_fragmentChat_to_fragmentEditPhoto"
+            app:destination="@id/fragmentEditPhoto" />
+    </fragment>
+    <fragment
+        android:id="@+id/fragmentEditPhoto"
+        android:name="com.happybird.photosender.presentation.fragment_edit_photo.FragmentEditPhoto"
+        android:label="FragmentEditPhoto" />
 </navigation>

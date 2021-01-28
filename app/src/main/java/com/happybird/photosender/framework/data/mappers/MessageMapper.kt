@@ -21,7 +21,7 @@ class MessageMapper @Inject constructor()
             else -> MessageType.Unknown
         }
 
-        var localFile: TdApi.LocalFile? = null
+        var localFile: TdApi.File? = null
         var text: String? = null
 
         if(messageType == MessageType.Text) {
@@ -30,10 +30,10 @@ class MessageMapper @Inject constructor()
         }
         else if(messageType == MessageType.Photo) {
             val content = e.content as TdApi.MessagePhoto
-            localFile = content.photo.sizes[3].photo.local
+            if(content.photo.sizes.isNotEmpty()) {
+                localFile = content.photo.sizes.last().photo
+            }
         }
-
-
 
         val senderId: Long = when(e.sender.constructor) {
             TdApi.MessageSenderUser.CONSTRUCTOR -> {

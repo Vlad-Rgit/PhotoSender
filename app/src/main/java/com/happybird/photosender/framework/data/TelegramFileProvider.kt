@@ -10,17 +10,23 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class TelegramFileProvider @Inject constructor() {
+class TelegramFileProvider @Inject constructor(
+        private val telegramClient: TelegramClient
+) {
 
-    suspend fun getFileContent(file: TdApi.LocalFile): ByteArray {
+    suspend fun getFileContent(file: TdApi.File): ByteArray {
         return withContext(Dispatchers.IO) {
-            while (!file.isDownloadingCompleted) {
-                delay(200L)
+            val local = file.local
+            if(!local.isDownloadingActive) {
+                telegramClient.downloadFile(file.id)
+                while (!local.isDownloadingCompleted) {
+                    delay(100L)
+                }
             }
-
-            val downloadedFile = FileInputStream(file.path)
-            val bytes = ByteArray(file.downloadedSize)
-            downloadedFile.read(bytes, 0, bytes.size)
+            val stream = FileInputStream(local.path)
+            val bytes = ByteArray(local.downloadedSize)
+            stream.read(bytes, 0, bytes.size)
+            stream.close()
             bytes
         }
     }

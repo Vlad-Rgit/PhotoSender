@@ -2,6 +2,7 @@ package com.happybird.photosender.framework.di.component
 
 import android.content.Context
 import com.happybird.photosender.framework.data.TelegramFileProvider
+import com.happybird.photosender.presentation.fragment_chat.viewmodel.FragmentChatViewModel
 import com.happybird.photosender.presentation.fragment_home.viewmodel.FragmentHomeViewModel
 import com.happybird.photosender.presentation.fragment_login.viewmodel.FragmentLoginViewModel
 import dagger.BindsInstance
@@ -14,6 +15,7 @@ interface AppComponent {
 
     fun inject(item: FragmentLoginViewModel)
     fun inject(item: FragmentHomeViewModel)
+    fun inject(item: FragmentChatViewModel)
 
     fun getTelegramFileProvider(): TelegramFileProvider
 

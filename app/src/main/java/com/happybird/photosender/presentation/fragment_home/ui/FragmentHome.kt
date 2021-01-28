@@ -5,10 +5,16 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.happybird.photosender.R
 import com.happybird.photosender.databinding.FragmentHomeBinding
+import com.happybird.photosender.domain.Chat
+import com.happybird.photosender.presentation.fragment_chat.ui.FragmentChat
 import com.happybird.photosender.presentation.fragment_home.FragmentHomeState
 import com.happybird.photosender.presentation.fragment_home.ListState
 import com.happybird.photosender.presentation.fragment_home.LoadingState
@@ -30,7 +36,20 @@ class FragmentHome: Fragment() {
                 )
         ).get(FragmentHomeViewModel::class.java)
 
-        chatAdapter = ChatAdapter()
+        chatAdapter = ChatAdapter(requireContext()).apply {
+            setChatClickedListener {
+                onChatClicked(it)
+            }
+        }
+    }
+
+    private fun onChatClicked(chat: Chat) {
+        findNavController().navigate(
+            R.id.action_fragmentLogin_to_fragmentChat,
+            bundleOf(
+                FragmentChat.EXTRA_CHAT_ID to chat.id
+            )
+        )
     }
 
     override fun onCreateView(
@@ -55,6 +74,8 @@ class FragmentHome: Fragment() {
         initRecyclerView()
     }
 
+
+
     private fun observeViewModel() {
         viewModel.state.observe(viewLifecycleOwner) {
             render(it)
@@ -66,6 +87,11 @@ class FragmentHome: Fragment() {
             setHasFixedSize(true)
             layoutManager = LinearLayoutManager(requireContext())
             adapter = chatAdapter
+
+            addItemDecoration(DividerItemDecoration(
+                requireContext(),
+                DividerItemDecoration.VERTICAL
+            ))
         }
     }
 

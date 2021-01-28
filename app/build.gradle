@@ -59,6 +59,8 @@ dependencies {
 
     def nav_version = "2.3.2"
 
+    //Circular Image view
+    implementation 'de.hdodenhof:circleimageview:3.1.0'
 
     //Dagger
     implementation 'com.google.dagger:dagger:2.31'
@@ -69,6 +71,9 @@ dependencies {
     implementation "androidx.navigation:navigation-ui-ktx:$nav_version"
 
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.2'
+
+    //Image editing
+    implementation 'ja.burhanrashid52:photoeditor:1.1.0'
 
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'

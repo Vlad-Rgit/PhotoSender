@@ -23,8 +23,8 @@ class ChatMapper @Inject constructor(private val messageMapper: MessageMapper)
                     null
                 else
                     messageMapper.toDomain(e.lastMessage!!),
-                e.photo?.small?.local,
-                e.photo?.big?.local
+                e.photo?.small,
+                e.photo?.big
         )
     }
 

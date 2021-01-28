@@ -7,8 +7,8 @@ data class Chat(
         val position: Long,
         val title: String,
         val lastMessage: Message?,
-        val smallPhoto: TdApi.LocalFile?,
-        val bigPhoto: TdApi.LocalFile?
+        val smallPhoto: TdApi.File?,
+        val bigPhoto: TdApi.File?
 ): ListItem<Chat> {
 
     override fun areContentsTheSame(other: Chat): Boolean {
@@ -29,4 +29,17 @@ data class Chat(
                 bigPhoto
         )
     }
+
+    fun updateLastMessage(lastMessage: Message?): Chat {
+        return Chat(
+                id,
+                position,
+                title,
+                lastMessage,
+                smallPhoto,
+                bigPhoto
+        )
+    }
+
+
 }

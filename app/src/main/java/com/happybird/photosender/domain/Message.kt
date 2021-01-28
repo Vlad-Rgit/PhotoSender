@@ -13,7 +13,48 @@ data class Message(
         val chatId: Long,
         val senderId: Long,
         val text: String?,
-        val photo: TdApi.LocalFile?,
+        val photo: TdApi.File?,
         val date: Int,
-        val messageType: MessageType
-)
+        val messageType: MessageType,
+        val isSending: Boolean = false,
+        val isFailed: Boolean = false
+): ListItem<Message> {
+
+    override fun areContentsTheSame(other: Message): Boolean {
+        return this == other
+    }
+
+    override fun areItemsTheSame(other: Message): Boolean {
+        return id == other.id
+    }
+
+    fun updateIsSending(isSending: Boolean): Message {
+        return Message(
+            id,
+            chatId,
+            senderId,
+            text,
+            photo,
+            date,
+            messageType,
+            isSending,
+            isFailed
+        )
+    }
+
+
+    fun updateIsFailed(isFailed: Boolean): Message {
+        return Message(
+            id,
+            chatId,
+            senderId,
+            text,
+            photo,
+            date,
+            messageType,
+            isSending,
+            isFailed
+        )
+    }
+
+}

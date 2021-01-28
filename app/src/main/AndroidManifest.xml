@@ -3,6 +3,8 @@
     package="com.happybird.photosender">
 
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera"/>
 
     <application
         android:name=".PhotoSenderApp"
@@ -15,9 +17,12 @@
         <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+
+        <activity android:name=".presentation.activity_edit_photo.ActivityEditPhoto">
+
         </activity>
     </application>
 

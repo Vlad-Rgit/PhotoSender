@@ -2,4 +2,18 @@
     <string name="app_name">Photo Sender</string>
     <string name="forward">Далее</string>
     <string name="enter_auth_code">Введите код доступа</string>
+    <string name="unsupported_message_type">
+        Не поддерживаемый тип сообщения
+    </string>
+    <string name="photo_message">
+        Фото
+    </string>
+
+    <string name="edit_photo">
+        Редактировать изображение?
+    </string>
+
+    <string name="yes">Да</string>
+    <string name="no">Нет</string>
+
 </resources>
