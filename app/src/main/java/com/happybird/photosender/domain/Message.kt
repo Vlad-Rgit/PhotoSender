@@ -5,6 +5,7 @@ import org.drinkless.td.libcore.telegram.TdApi
 enum class MessageType {
     Text,
     Photo,
+    Album,
     Unknown
 }
 

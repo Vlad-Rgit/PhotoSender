@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.StateFlow
 import org.drinkless.td.libcore.telegram.Client
 import org.drinkless.td.libcore.telegram.TdApi
 import org.drinkless.td.libcore.telegram.TdApi.*
-import java.io.File
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -72,7 +71,7 @@ class TelegramClient
 
     lateinit var currentUser: TdApi.User
 
-    private val _photosCache = hashMapOf<Long, String>()
+    private val _photosCache = hashMapOf<Long, List<String>>()
 
     suspend fun init() {
         val authState = client.send(TdApi.GetAuthorizationState())
@@ -127,13 +126,8 @@ class TelegramClient
                 0,
                 null,
                 replyMarkup,
-                content)) as TdApi.Message
-
-            if(inboxChatId == chatId) {
-                addMessageToInbox(messageMapper
-                    .toDomain(message)
-                )
-            }
+                content)
+            )
         }
     }
 
@@ -147,54 +141,103 @@ class TelegramClient
     }
 
     suspend fun sendImageMessage(photoSend: PhotoSend) {
-        withContext(Dispatchers.IO) {
+        val chatId = inboxChatId!!
 
-            val chatId = inboxChatId!!
-
-            val row = arrayOf(
+        val row = arrayOf(
                 InlineKeyboardButton(
-                    "https://telegram.org?1",
-                    InlineKeyboardButtonTypeUrl()
+                        "https://telegram.org?1",
+                        InlineKeyboardButtonTypeUrl()
                 ),
                 InlineKeyboardButton("https://telegram.org?2", InlineKeyboardButtonTypeUrl()),
                 InlineKeyboardButton("https://telegram.org?3", InlineKeyboardButtonTypeUrl())
-            )
+        )
 
-            val replyMarkup: ReplyMarkup = ReplyMarkupInlineKeyboard(arrayOf(row, row, row))
+        val replyMarkup: ReplyMarkup = ReplyMarkupInlineKeyboard(arrayOf(row, row, row))
 
 
-            try {
+        try {
 
-               val message = client.send(
+            val message = client.send(
                     TdApi.SendMessage(
-                        chatId,
-                        0,
-                        0,
-                        null,
-                        replyMarkup,
-                        InputMessagePhoto(
-                            TdApi.InputFileLocal(
-                                photoSend.path
-                            ),
+                            chatId,
+                            0,
+                            0,
                             null,
-                            null,
-                            photoSend.width,
-                            photoSend.height,
-                            FormattedText(
-                                photoSend.caption,
-                                null
-                            ),
-                            0
-                        )
+                            replyMarkup,
+                            InputMessagePhoto(
+                                    TdApi.InputFileLocal(
+                                            photoSend.path
+                                    ),
+                                    null,
+                                    null,
+                                    photoSend.width,
+                                    photoSend.height,
+                                    FormattedText(
+                                            photoSend.caption,
+                                            null
+                                    ),
+                                    0
+                            )
                     )
-                ) as TdApi.Message
+            ) as TdApi.Message
 
-                synchronized(_photosCache) {
-                    _photosCache.put(message.id, photoSend.path)
-                }
+            synchronized(_photosCache) {
+                _photosCache.put(message.id, listOf(photoSend.path))
             }
-            catch (ex: java.lang.Exception) {
-                Log.e(TAG, ex.message, ex)
+        } catch (ex: java.lang.Exception) {
+            Log.e(TAG, ex.message, ex)
+        }
+    }
+
+    suspend fun sendImageMessages(photoSends: List<PhotoSend>) {
+        withContext(Dispatchers.IO) {
+            if(photoSends.size == 1) {
+                sendImageMessage(photoSends.first())
+            }
+            else {
+                val chatId = inboxChatId!!
+
+                try {
+
+                    val album = arrayOfNulls<InputMessagePhoto>(photoSends.size)
+
+                    for((index, photoSend) in photoSends.withIndex()) {
+                        album[index] = InputMessagePhoto(
+                                TdApi.InputFileLocal(
+                                        photoSend.path
+                                ),
+                                null,
+                                null,
+                                photoSend.width,
+                                photoSend.height,
+                                FormattedText(
+                                        photoSend.caption,
+                                        null
+                                ),
+                                0
+                        )
+                    }
+
+
+                    val message = client.send(
+                            TdApi.SendMessageAlbum(
+                                    chatId,
+                                    0,
+                                    0,
+                                    null,
+                                    album
+                            )
+                    ) as TdApi.Message
+
+                    synchronized(_photosCache) {
+                        _photosCache.put(message.id, photoSends.map {
+                            it.path
+                        })
+                    }
+
+                } catch (ex: java.lang.Exception) {
+                    Log.e(TAG, ex.message, ex)
+                }
             }
         }
     }
@@ -328,6 +371,16 @@ class TelegramClient
     }
 
 
+    suspend fun deleteChat(chatId: Long, deleteForAll: Boolean) {
+        withContext(Dispatchers.IO) {
+            client.send(TdApi.DeleteChatHistory(
+                    chatId,
+                    false,
+                    deleteForAll)
+            )
+        }
+    }
+
     suspend fun downloadFile(fileId: Int): TdApi.File {
         return withContext(Dispatchers.IO) {
             client.send(
@@ -370,6 +423,23 @@ class TelegramClient
             TdApi.UpdateMessageSendFailed.CONSTRUCTOR -> {
                 handleUpdateSuccessFailed(state)
             }
+            TdApi.UpdateDeleteMessages.CONSTRUCTOR -> {
+                handleUpdateDeleteMessages(state)
+            }
+        }
+    }
+
+    private fun handleUpdateDeleteMessages(value: Object) {
+        val chatId = inboxChatId
+        val update = value as TdApi.UpdateDeleteMessages
+        if(update.chatId == chatId) {
+            _inbox.value = generateList {
+                for(i in _inbox.value) {
+                    if(!update.messageIds.any { it == i.id }) {
+                        add(i)
+                    }
+                }
+            }
         }
     }
 
@@ -377,12 +447,32 @@ class TelegramClient
         val update = value as TdApi.UpdateMessageSendSucceeded
         val message = messageMapper.toDomain(update.message)
 
+        val chatId = inboxChatId
+        if(chatId == update.message.chatId) {
+            synchronized(_inbox) {
+                val index = _inbox.value.indexOfFirst {
+                    it.id == update.oldMessageId
+                }
+                if(index > -1) {
+                    _inbox.value = generateList {
+                        add(message)
+                        for(i in _inbox.value.indices) {
+                            if(i != index)
+                                add(_inbox.value[i])
+                        }
+                    }
+                }
+            }
+        }
+
         synchronized(_photosCache) {
             if (message.messageType == MessageType.Photo &&
                 _photosCache.containsKey(message.id)
             ) {
                 try {
-                    deletePhotoFromCache(_photosCache[message.id]!!)
+                    for(path in _photosCache[message.id]!!) {
+                        deletePhotoFromCache(path)
+                    }
                     _photosCache.remove(message.id)
                 } catch (ex: java.lang.Exception) {
                     Log.e(TAG, ex.message, ex)
@@ -413,13 +503,16 @@ class TelegramClient
     }
 
     private fun handleUpdateNewMessage(value: TdApi.Object) {
+        Log.d(TAG + "NMessage", "New Message Received")
         val chatId = inboxChatId
         val update = value as TdApi.UpdateNewMessage
-        if(chatId != null &&
-            update.message.chatId == chatId) {
+
+        if (chatId != null &&
+                update.message.chatId == chatId) {
             val message = messageMapper.toDomain(update.message)
             addMessageToInbox(message)
         }
+
     }
 
     private fun addMessageToInbox(message: Message) {

@@ -24,10 +24,12 @@
                 app:layout_constraintEnd_toEndOf="parent"/>
             <ImageView
                 android:id="@+id/img_message"
-                android:layout_width="250dp"
-                android:layout_height="300dp"
-                android:maxWidth="250dp"
-                android:maxHeight="300dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="350dp"
+                android:maxWidth="300dp"
+                android:minWidth="250dp"
+                android:maxHeight="600dp"
                 android:adjustViewBounds="true"
                 android:scaleType="centerCrop"
                 app:layout_constraintTop_toTopOf="parent"

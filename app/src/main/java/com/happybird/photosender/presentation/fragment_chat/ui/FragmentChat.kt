@@ -3,16 +3,11 @@ package com.happybird.photosender.presentation.fragment_chat.ui
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.ActivityNotFoundException
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.database.Cursor
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
-import android.provider.MediaStore.Images
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -24,7 +19,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.happybird.photosender.PhotoSenderApp
 import com.happybird.photosender.R
 import com.happybird.photosender.databinding.FragmentChatBinding
@@ -32,17 +26,15 @@ import com.happybird.photosender.domain.PhotoSend
 import com.happybird.photosender.framework.data.TelegramFileProvider
 import com.happybird.photosender.framework.utils.allocateImageFile
 import com.happybird.photosender.presentation.PaddingDivider
+import com.happybird.photosender.presentation.fragment_chat.AttachmentsState
 import com.happybird.photosender.presentation.fragment_chat.FragmentChatState
 import com.happybird.photosender.presentation.fragment_chat.MessagesState
 import com.happybird.photosender.presentation.fragment_chat.viewmodel.FragmentChatViewModel
 import com.happybird.photosender.presentation.fragment_chat.viewmodel.FragmentChatViewModelFactory
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
 
 
 class FragmentChat: Fragment() {
@@ -61,6 +53,7 @@ class FragmentChat: Fragment() {
     private lateinit var binding: FragmentChatBinding
     private lateinit var messageAdapter: MessagesAdapter
     private lateinit var telegramFileProvider: TelegramFileProvider
+    private lateinit var photoAttachmentAdapter: PhotoAttachmentAdapter
 
 
     private var photoSend: PhotoSend? = null
@@ -83,6 +76,14 @@ class FragmentChat: Fragment() {
         ).get(FragmentChatViewModel::class.java)
 
         messageAdapter = MessagesAdapter(requireContext(), viewModel.currentUser)
+        photoAttachmentAdapter = PhotoAttachmentAdapter().apply {
+            setOnRemoveClickedListener {
+                viewModel.removePhotoSend(it)
+            }
+            setOnPhotoClicked {
+                sendPhotoForEdit(it)
+            }
+        }
     }
 
     override fun onCreateView(
@@ -102,10 +103,12 @@ class FragmentChat: Fragment() {
 
 
 
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         initToolbar()
         initRecyclerView()
+        initPhotoAttachmentRecyclerView()
         observeViewModel()
         initButtons()
     }
@@ -131,7 +134,30 @@ class FragmentChat: Fragment() {
                     }
                 }
             }
+
+            toolbar.setOnMenuItemClickListener {
+                if(it.itemId == R.id.menu_clear_chat) {
+                    clearChat()
+                    true
+                }
+                else {
+                    false
+                }
+            }
         }
+    }
+
+    private fun clearChat() {
+        AlertDialog.Builder(requireContext())
+                .setTitle(R.string.delete_for_all)
+                .setPositiveButton(R.string.yes) { _, _ ->
+                    viewModel.deleteChat(true)
+                }
+                .setNegativeButton(R.string.no) { _, _ ->
+                    viewModel.deleteChat(false)
+                }
+                .setNeutralButton(R.string.cancel) { _, _ -> }
+                .show()
     }
 
     private fun startCamera() {
@@ -185,48 +211,44 @@ class FragmentChat: Fragment() {
         if(resultCode == Activity.RESULT_OK &&
             requestCode == CODE_TAKE_PHOTO) {
             val toSend = photoSend!!
-
-            val bitmap = BitmapFactory.decodeFile(toSend.path)
-            toSend.width = bitmap.width
-            toSend.height = bitmap.height
-
-            AlertDialog.Builder(requireContext())
-                .setMessage(R.string.edit_photo)
-                .setPositiveButton(R.string.yes) { d, i ->
-                    val editIntent = Intent(Intent.ACTION_EDIT)
-                    val uri = FileProvider.getUriForFile(
-                        requireContext(),
-                        requireContext()
-                            .applicationContext
-                            .packageName + ".provider",
-                        File(toSend.path)
-                    )
-                    editIntent.putExtra(MediaStore.EXTRA_OUTPUT, uri)
-                    editIntent.setDataAndType(uri, "image/*")
-                    editIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    editIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                    startActivityForResult(
-                        editIntent,
-                        CODE_REQUEST_PHOTO_EDIT
-                    )
-                }
-                .setNegativeButton(R.string.no) { d, i ->
-                    prepareImageToSend(bitmap)
-                }.show()
+            sendPhotoForEdit(toSend)
         }
         else if(requestCode == CODE_REQUEST_PHOTO_EDIT) {
-            prepareImageToSend(BitmapFactory
-                .decodeFile(photoSend!!.path))
+            if(photoSend != null) {
+                prepareImageToSend(photoSend!!)
+            }
+            else {
+                photoAttachmentAdapter.notifyDataSetChanged()
+            }
+            photoSend = null
         }
     }
 
-    private fun prepareImageToSend(bitmap: Bitmap) {
-        binding.img.setImageBitmap(bitmap)
-        binding.img.visibility = View.VISIBLE
+    private fun sendPhotoForEdit(toSend: PhotoSend) {
+        val bitmap = BitmapFactory.decodeFile(toSend.path)
+        toSend.width = bitmap.width
+        toSend.height = bitmap.height
+
+        val editIntent = Intent(Intent.ACTION_EDIT)
+        val uri = FileProvider.getUriForFile(
+                requireContext(),
+                requireContext()
+                        .applicationContext
+                        .packageName + ".provider",
+                File(toSend.path)
+        )
+        editIntent.putExtra(MediaStore.EXTRA_OUTPUT, uri)
+        editIntent.setDataAndType(uri, "image/*")
+        editIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        editIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        startActivityForResult(
+                editIntent,
+                CODE_REQUEST_PHOTO_EDIT
+        )
     }
 
-    private fun sendImageForEdit() {
-
+    private fun prepareImageToSend(photoSend: PhotoSend) {
+        viewModel.addPhotoToSend(photoSend)
     }
 
     override fun onRequestPermissionsResult(
@@ -245,10 +267,10 @@ class FragmentChat: Fragment() {
     private fun initButtons() {
         binding.run {
             btnSend.setOnClickListener {
-                if(photoSend != null) {
-                    viewModel.sendImage(photoSend!!)
+                if(photoAttachmentAdapter.itemCount > 0) {
+                    viewModel.sendAttachments()
                     photoSend = null
-                    img.visibility = View.GONE
+                    photoAttachmentAdapter.setItems(emptyList())
                 }
                 else {
                     val text = edMessageText.text.toString()
@@ -263,8 +285,6 @@ class FragmentChat: Fragment() {
             }
         }
     }
-
-    private var isLoading = false
 
     private fun initRecyclerView() {
         binding.rvMessages.run {
@@ -291,6 +311,32 @@ class FragmentChat: Fragment() {
         }
     }
 
+    private fun initPhotoAttachmentRecyclerView() {
+        binding.rvAttachments.run {
+            layoutManager = LinearLayoutManager(
+                    requireContext(),
+                    LinearLayoutManager.HORIZONTAL,
+                    false
+            )
+            adapter = photoAttachmentAdapter
+
+            val dividerSize = requireContext()
+                    .resources
+                    .getDimensionPixelSize(
+                            R.dimen.divider_space_height
+                    )
+
+            addItemDecoration(
+                    PaddingDivider(
+                        dividerSize,
+                            dividerSize,
+                            dividerSize,
+                            dividerSize
+                    )
+            )
+        }
+    }
+
     private fun observeViewModel() {
         viewModel.state.observe(viewLifecycleOwner) {
             render(it)
@@ -299,17 +345,16 @@ class FragmentChat: Fragment() {
 
     private fun render(state: FragmentChatState) {
         renderList(state)
-        renderLoading(state)
+        renderAttachments(state)
     }
 
     private fun renderList(state: FragmentChatState) {
         if(state is MessagesState) {
-            isLoading = false
             messageAdapter.updateItems(state.list)
             val layoutManager = binding.rvMessages.layoutManager
                 as LinearLayoutManager
-            if(layoutManager.findLastVisibleItemPosition()
-                == state.list.size - 2) {
+            val visiblePos = layoutManager.findLastCompletelyVisibleItemPosition()
+            if(visiblePos < state.list.size - 1) {
                 layoutManager.scrollToPosition(
                     state.list.size - 1
                 )
@@ -317,7 +362,15 @@ class FragmentChat: Fragment() {
         }
     }
 
-    private fun renderLoading(state: FragmentChatState) {
-
+    private fun renderAttachments(state: FragmentChatState) {
+        if(state is AttachmentsState) {
+            if(state.list.isNotEmpty()) {
+                binding.rvAttachments.visibility = View.VISIBLE
+            }
+            else {
+                binding.rvAttachments.visibility = View.GONE
+            }
+            photoAttachmentAdapter.setItems(state.list)
+        }
     }
 }

@@ -11,6 +11,7 @@ import com.happybird.photosender.domain.PhotoSend
 import com.happybird.photosender.domain.User
 import com.happybird.photosender.framework.data.TelegramClient
 import com.happybird.photosender.framework.data.mappers.UserMapper
+import com.happybird.photosender.presentation.fragment_chat.AttachmentsState
 import com.happybird.photosender.presentation.fragment_chat.FragmentChatState
 import com.happybird.photosender.presentation.fragment_chat.MessagesState
 import kotlinx.coroutines.Dispatchers
@@ -28,13 +29,16 @@ class FragmentChatViewModel(application: Application, private val chatId: Long)
     @Inject
     lateinit var userMapper: UserMapper
 
+    private val attachments = mutableListOf<PhotoSend>()
 
     private val _state = MutableLiveData<FragmentChatState>()
     val state: LiveData<FragmentChatState> = _state
 
+
     val currentUser: User
 
     init {
+
         val photoApp = application as PhotoSenderApp
         photoApp.appComponent.inject(this)
 
@@ -75,9 +79,17 @@ class FragmentChatViewModel(application: Application, private val chatId: Long)
         return telegramClient.getChatInfo(chatId)
     }
 
-    fun sendImage(photoSend: PhotoSend) {
+    fun sendAttachments() {
         viewModelScope.launch(Dispatchers.IO) {
-            telegramClient.sendImageMessage(photoSend)
+            telegramClient.sendImageMessages(attachments.toList())
+            attachments.clear()
+            _state.postValue(AttachmentsState(attachments.toList()))
+        }
+    }
+
+    fun deleteChat(removeForAll: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            telegramClient.deleteChat(chatId, removeForAll)
         }
     }
 
@@ -85,6 +97,16 @@ class FragmentChatViewModel(application: Application, private val chatId: Long)
         viewModelScope.launch(Dispatchers.IO) {
             telegramClient.sendTextMessage(text)
         }
+    }
+
+    fun addPhotoToSend(photoSend: PhotoSend) {
+        attachments.add(photoSend)
+        _state.postValue(AttachmentsState(attachments.toList()))
+    }
+
+    fun removePhotoSend(photoSend: PhotoSend) {
+        attachments.remove(photoSend)
+        _state.postValue(AttachmentsState(attachments.toList()))
     }
 
 }

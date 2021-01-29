@@ -6,7 +6,6 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.happybird.photosender.PhotoSenderApp
 import com.happybird.photosender.R
 import com.happybird.photosender.databinding.ItemChatBinding
@@ -19,7 +18,6 @@ import kotlinx.coroutines.*
 typealias ChatClickedListener = (Chat) -> Unit
 
 class ChatAdapter(context: Context): RecyclerView.Adapter<ChatAdapter.ChatViewHolder>() {
-
 
     private val telegramFileProvider: TelegramFileProvider
 
@@ -79,6 +77,7 @@ class ChatAdapter(context: Context): RecyclerView.Adapter<ChatAdapter.ChatViewHo
                         MessageType.Unknown -> context.getString(
                             R.string.unsupported_message_type
                         )
+                        else -> {""}
                     }
             }
         }

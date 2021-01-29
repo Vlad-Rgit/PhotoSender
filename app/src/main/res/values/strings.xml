@@ -16,5 +16,13 @@
     <string name="yes">Да</string>
     <string name="no">Нет</string>
     <string name="enter_phone_number">Введите номер телефона</string>
+    <string name="clear_chat">Очистить чат</string>
 
+    <string name="delete_for_all">
+        Удалить для всех?
+    </string>
+
+    <string name="cancel">
+        Отмена
+    </string>
 </resources>
